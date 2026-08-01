@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"user-api/internal/config"
 	"user-api/internal/handlers"
 	"user-api/internal/storage"
 
@@ -11,8 +12,12 @@ import (
 )
 
 func main() {
-	conSQL := "postgres://user:password@localhost:5432/user_api?sslmode=disable"
-	bd, err := sql.Open("pgx", conSQL)
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Println("config error:", err)
+		return
+	}
+	bd, err := sql.Open("pgx", cfg.DatabaseURL)
 	if err != nil {
 		fmt.Println("open error:", err)
 		return
@@ -34,7 +39,7 @@ func main() {
 	http.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {
 		h.UserHandler(w, r)
 	})
-	err = http.ListenAndServe(":8080", nil)
+	err = http.ListenAndServe(fmt.Sprintf(":%d", cfg.ServerPort), nil)
 	if err != nil {
 		fmt.Println("Error:", err)
 	}
