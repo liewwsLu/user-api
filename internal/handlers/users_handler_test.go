@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 	"user-api/internal/models"
+	"user-api/internal/storage"
 )
 
 type fakeUserStorage struct {
@@ -145,5 +146,77 @@ func TestUsersHandlerCreateUser(t *testing.T) {
 	}
 	if gotUser.Email != wantUser.Email {
 		t.Errorf("Email() got: %q, want: %q", gotUser.Email, wantUser.Email)
+	}
+}
+
+func TestUsersHandlerRejectsInvalidJSON(t *testing.T) {
+	fake := &fakeUserStorage{}
+	h := New(fake)
+
+	request := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":`))
+	recorder := httptest.NewRecorder()
+	h.UsersHandler(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Errorf("recorder code() got: %d, want: %d", recorder.Code, http.StatusBadRequest)
+	}
+	if fake.createCalled {
+		t.Fatalf("CreateUser was called")
+	}
+	var gotErr map[string]string
+	err := json.NewDecoder(recorder.Body).Decode(&gotErr)
+	if err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if gotErr["error"] != "invalid json" {
+		t.Errorf("json status: %q, want: %q", gotErr["error"], "invalid json")
+	}
+}
+
+func TestUsersHandlerMapsCreateUserErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		wantStatus int
+		storageErr error
+	}{
+		{
+			name:       "validation error",
+			wantStatus: http.StatusBadRequest,
+			storageErr: storage.ErrValidation,
+		},
+		{
+			name:       "conflict error",
+			wantStatus: http.StatusConflict,
+			storageErr: storage.ErrConflict,
+		},
+		{
+			name:       "unexpected error",
+			wantStatus: http.StatusInternalServerError,
+			storageErr: errors.New("database unavailable"),
+		},
+	}
+	for _, e := range tests {
+		t.Run(e.name, func(t *testing.T) {
+			fake := &fakeUserStorage{
+				createErr: e.storageErr,
+			}
+			h := New(fake)
+			request := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"Dima","email":"dima@example.com"}`))
+			recorder := httptest.NewRecorder()
+			h.UsersHandler(recorder, request)
+			if !fake.createCalled {
+				t.Fatalf("UsersHandler() got: %v, want: %v", fake.createCalled, true)
+			}
+			if recorder.Code != e.wantStatus {
+				t.Errorf("Status() got: %d, want: %d", recorder.Code, e.wantStatus)
+			}
+			var gotErr map[string]string
+			err := json.NewDecoder(recorder.Body).Decode(&gotErr)
+			if err != nil {
+				t.Fatalf("decode response err: %v", err)
+			}
+			if gotErr["error"] != e.storageErr.Error() {
+				t.Errorf("Error() got: %q, want: %q", gotErr["error"], e.storageErr.Error())
+			}
+		})
 	}
 }
