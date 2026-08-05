@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgconn"
 	"strings"
 	"user-api/internal/models"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type PostgresStorage struct {
