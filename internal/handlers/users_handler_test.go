@@ -147,3 +147,27 @@ func TestUsersHandlerCreateUser(t *testing.T) {
 		t.Errorf("Email() got: %q, want: %q", gotUser.Email, wantUser.Email)
 	}
 }
+
+func TestUsersHandlerRejectsInvalidJSON(t *testing.T) {
+	fake := &fakeUserStorage{}
+	h := New(fake)
+
+	request := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":`))
+	recorder := httptest.NewRecorder()
+	h.UsersHandler(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Errorf("recorder code() got: %d, want: %d", recorder.Code, http.StatusBadRequest)
+	}
+	if fake.createCalled {
+		t.Fatalf("CreateUser was called")
+	}
+	var gotErr map[string]string
+	err := json.NewDecoder(recorder.Body).Decode(&gotErr)
+	if err != nil {
+		t.Fatalf("decode response body: %v", err)
+	}
+	if gotErr["error"] != "invalid json" {
+		t.Errorf("json status: %q, want: %q", gotErr["error"], "invalid json")
+	}
+
+}
