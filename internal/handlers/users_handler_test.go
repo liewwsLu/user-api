@@ -105,11 +105,11 @@ func TestUsersHandlerCreateUser(t *testing.T) {
 	wantUser := models.User{
 		ID:    1,
 		Name:  "Dima",
-		Email: "dima@yande.ri",
+		Email: "dima@yandex.ru",
 	}
 	fake := &fakeUserStorage{createdUser: wantUser}
 	h := New(fake)
-	request := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"Dima","email":"dima@yande.ri"}`))
+	request := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"     Dima     ","email":"     dima@yandex.ru      "}`))
 	recorder := httptest.NewRecorder()
 	h.UsersHandler(recorder, request)
 	if recorder.Code != http.StatusCreated {
@@ -217,6 +217,60 @@ func TestUsersHandlerMapsCreateUserErrors(t *testing.T) {
 			if gotErr["error"] != e.storageErr.Error() {
 				t.Errorf("Error() got: %q, want: %q", gotErr["error"], e.storageErr.Error())
 			}
+		})
+	}
+}
+
+func TestUsersHandlerRejectsInvalidCreateUserInput(t *testing.T) {
+	tests := []struct {
+		name        string
+		requestJSON string
+		wantErr     string
+	}{
+		{name: "empty name",
+			requestJSON: `{"name":"", "email":" dima@example.com "}`,
+			wantErr:     "name is required"},
+		{name: "name consists only spaces",
+			requestJSON: `{"name":"   ", "email":"dima@example.com"    }`,
+			wantErr:     "name is required"},
+		{name: "empty email",
+			requestJSON: `{"name":"     Dima", "email":""}`,
+			wantErr:     "email is required"},
+		{name: "email consists only spaces",
+			requestJSON: `{"name":"     Dima", "email":"    "}`,
+			wantErr:     "email is required"},
+		{name: "email without at sign",
+			requestJSON: `{"name":"Dima", "email":"hello"}`,
+			wantErr:     "email is invalid"},
+		{name: "email with display name",
+			requestJSON: `{"name":"Dima", "email":"Dima <dima@example.com>"}`,
+			wantErr:     "email is invalid"},
+		{name: "email without domain",
+			requestJSON: `{"name":"Dima", "email":"dima@"}`,
+			wantErr:     "email is invalid"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fake := &fakeUserStorage{}
+			h := New(fake)
+			request := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(test.requestJSON))
+			recorder := httptest.NewRecorder()
+			h.UsersHandler(recorder, request)
+			if recorder.Code != http.StatusBadRequest {
+				t.Errorf("Status() got: %d, want: %d", recorder.Code, http.StatusBadRequest)
+			}
+			if fake.createCalled {
+				t.Fatalf("CreateUser was called")
+			}
+			var gotErr map[string]string
+			err := json.NewDecoder(recorder.Body).Decode(&gotErr)
+			if err != nil {
+				t.Fatalf("Decode response error: %v", err)
+			}
+			if gotErr["error"] != test.wantErr {
+				t.Errorf("Error() got: %q, want: %q", gotErr["error"], test.wantErr)
+			}
+
 		})
 	}
 }

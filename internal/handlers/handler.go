@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/mail"
+	"strings"
 	"user-api/internal/helper"
 	"user-api/internal/models"
 	"user-api/internal/storage"
@@ -30,6 +33,22 @@ func New(store UserStorage) *Handler {
 type CreateUserRequest struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
+}
+
+func validateCreateUserRequest(req *CreateUserRequest) error {
+	req.Name = strings.TrimSpace(req.Name)
+	req.Email = strings.TrimSpace(req.Email)
+	if req.Name == "" {
+		return errors.New("name is required")
+	}
+	if req.Email == "" {
+		return errors.New("email is required")
+	}
+	address, err := mail.ParseAddress(req.Email)
+	if err != nil || address.Address != req.Email {
+		return errors.New("email is invalid")
+	}
+	return nil
 }
 
 type UpdateUserRequest struct {
@@ -114,6 +133,11 @@ func (h *Handler) createUserHandler(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	err = validateCreateUserRequest(&req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	u, err := h.store.CreateUser(req.Name, req.Email)
