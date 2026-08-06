@@ -274,3 +274,69 @@ func TestUsersHandlerRejectsInvalidCreateUserInput(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCreateUserRequestLength(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr string
+		request CreateUserRequest
+	}{
+		{name: "accepts name with 100 runes",
+			request: CreateUserRequest{
+				Name:  strings.Repeat("Я", 100),
+				Email: "dima@example.com",
+			},
+			wantErr: ""},
+		{name: "rejects name with 101 runes",
+			request: CreateUserRequest{
+				Name:  strings.Repeat("Я", 101),
+				Email: "dima@example.com",
+			},
+			wantErr: "name is too long"},
+		{name: "accepts email with 254 bytes",
+			request: CreateUserRequest{
+				Name: "Dima",
+				Email: strings.Repeat("a", 64) + "@" +
+					strings.Repeat("b", 63) + "." +
+					strings.Repeat("c", 63) + "." +
+					strings.Repeat("d", 61),
+			},
+			wantErr: "",
+		},
+		{name: "rejects email with 255 bytes",
+			request: CreateUserRequest{
+				Name: "Dima",
+				Email: strings.Repeat("a", 64) + "@" +
+					strings.Repeat("b", 63) + "." +
+					strings.Repeat("c", 63) + "." +
+					strings.Repeat("d", 62),
+			},
+			wantErr: "email is too long"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req := test.request
+			err := validateCreateUserRequest(&req)
+			if test.wantErr == "" {
+				if err != nil {
+					t.Fatalf("validateCreateUserRequest() error = %v, want = nil", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf(
+					"validateCreateUserRequest() error = nil, want %q",
+					test.wantErr,
+				)
+			}
+
+			if err.Error() != test.wantErr {
+				t.Errorf(
+					"validateCreateUserRequest() error = %q, want %q",
+					err.Error(),
+					test.wantErr,
+				)
+			}
+		})
+	}
+}

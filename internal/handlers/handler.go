@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/mail"
 	"strings"
+	"unicode/utf8"
 	"user-api/internal/helper"
 	"user-api/internal/models"
 	"user-api/internal/storage"
@@ -43,6 +44,12 @@ func validateCreateUserRequest(req *CreateUserRequest) error {
 	}
 	if req.Email == "" {
 		return errors.New("email is required")
+	}
+	if utf8.RuneCountInString(req.Name) > 100 {
+		return errors.New("name is too long")
+	}
+	if len(req.Email) > 254 {
+		return errors.New("email is too long")
 	}
 	address, err := mail.ParseAddress(req.Email)
 	if err != nil || address.Address != req.Email {
