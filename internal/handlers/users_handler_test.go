@@ -15,10 +15,14 @@ type fakeUserStorage struct {
 	users        []models.User
 	listErr      error
 	createErr    error
+	updateErr    error
 	createdUser  models.User
+	updatedUser  models.User
 	gotName      string
 	gotEmail     string
+	gotID        int
 	createCalled bool
+	updateCalled bool
 }
 
 func (f *fakeUserStorage) ListUsers() ([]models.User, error) {
@@ -37,7 +41,11 @@ func (f *fakeUserStorage) CreateUser(name, email string) (models.User, error) {
 }
 
 func (f *fakeUserStorage) UpdateUser(id int, name, email string) (models.User, error) {
-	panic("not implemented")
+	f.updateCalled = true
+	f.gotID = id
+	f.gotName = name
+	f.gotEmail = email
+	return f.updatedUser, f.updateErr
 }
 
 func (f *fakeUserStorage) DeleteUser(id int) error {
@@ -275,26 +283,26 @@ func TestUsersHandlerRejectsInvalidCreateUserInput(t *testing.T) {
 	}
 }
 
-func TestValidateCreateUserRequestLength(t *testing.T) {
+func TestValidateUserRequestLength(t *testing.T) {
 	tests := []struct {
 		name    string
 		wantErr string
-		request CreateUserRequest
+		request UserRequest
 	}{
 		{name: "accepts name with 100 runes",
-			request: CreateUserRequest{
+			request: UserRequest{
 				Name:  strings.Repeat("Я", 100),
 				Email: "dima@example.com",
 			},
 			wantErr: ""},
 		{name: "rejects name with 101 runes",
-			request: CreateUserRequest{
+			request: UserRequest{
 				Name:  strings.Repeat("Я", 101),
 				Email: "dima@example.com",
 			},
 			wantErr: "name is too long"},
 		{name: "accepts email with 254 bytes",
-			request: CreateUserRequest{
+			request: UserRequest{
 				Name: "Dima",
 				Email: strings.Repeat("a", 64) + "@" +
 					strings.Repeat("b", 63) + "." +
@@ -304,7 +312,7 @@ func TestValidateCreateUserRequestLength(t *testing.T) {
 			wantErr: "",
 		},
 		{name: "rejects email with 255 bytes",
-			request: CreateUserRequest{
+			request: UserRequest{
 				Name: "Dima",
 				Email: strings.Repeat("a", 64) + "@" +
 					strings.Repeat("b", 63) + "." +
@@ -316,26 +324,161 @@ func TestValidateCreateUserRequestLength(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			req := test.request
-			err := validateCreateUserRequest(&req)
+			err := validateUserRequest(&req)
 			if test.wantErr == "" {
 				if err != nil {
-					t.Fatalf("validateCreateUserRequest() error = %v, want = nil", err)
+					t.Fatalf("validateUserRequest() error = %v, want = nil", err)
 				}
 				return
 			}
 			if err == nil {
 				t.Fatalf(
-					"validateCreateUserRequest() error = nil, want %q",
+					"validateUserRequest() error = nil, want %q",
 					test.wantErr,
 				)
 			}
 
 			if err.Error() != test.wantErr {
 				t.Errorf(
-					"validateCreateUserRequest() error = %q, want %q",
+					"validateUserRequest() error = %q, want %q",
 					err.Error(),
 					test.wantErr,
 				)
+			}
+		})
+	}
+}
+
+func TestUserHandlerUpdatesUser(t *testing.T) {
+	wantUser := models.User{
+		ID:    1,
+		Name:  "Egor",
+		Email: "egor@example.com",
+	}
+	fake := &fakeUserStorage{
+		updatedUser: wantUser,
+	}
+	h := New(fake)
+	request := httptest.NewRequest(http.MethodPut, "/user?id=1", strings.NewReader(`{"name":"   Egor    ","email":"   egor@example.com   "}`))
+	recorder := httptest.NewRecorder()
+	h.UserHandler(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Errorf("Status() got: %d, want: %d", recorder.Code, http.StatusOK)
+	}
+	if !fake.updateCalled {
+		t.Fatalf("UpdateUser was not called")
+	}
+	if fake.gotID != 1 {
+		t.Errorf("ID() got: %d, want: %d", fake.gotID, 1)
+	}
+	if fake.gotName != wantUser.Name {
+		t.Errorf(
+			"UpdateUser() name = %q, want %q",
+			fake.gotName,
+			wantUser.Name,
+		)
+	}
+	if fake.gotEmail != wantUser.Email {
+		t.Errorf(
+			"UpdateUser() email = %q, want %q",
+			fake.gotEmail,
+			wantUser.Email,
+		)
+	}
+	var gotUser models.User
+	err := json.NewDecoder(recorder.Body).Decode(&gotUser)
+	if err != nil {
+		t.Fatalf("Decode response error: %v", err)
+	}
+	if gotUser != wantUser {
+		t.Errorf("User() got: %v, want: %v", gotUser, wantUser)
+	}
+}
+
+func TestUserHandlerRejectsInvalidUpdateInput(t *testing.T) {
+	tests := []struct {
+		name        string
+		requestJSON string
+		wantErr     string
+	}{
+		{name: "malformed JSON", requestJSON: `{"name":}`, wantErr: "invalid json"},
+		{name: "empty name", requestJSON: `{"name":"","email":"egor@example.com"}`, wantErr: "name is required"},
+		{name: "invalid email", requestJSON: `{"name":"Egor","email":"hello"}`, wantErr: "email is invalid"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fake := &fakeUserStorage{}
+			h := New(fake)
+			request := httptest.NewRequest(http.MethodPut, "/user?id=1", strings.NewReader(test.requestJSON))
+			recorder := httptest.NewRecorder()
+			h.UserHandler(recorder, request)
+			if recorder.Code != http.StatusBadRequest {
+				t.Errorf("Status() got: %d, want: %d", recorder.Code, http.StatusBadRequest)
+			}
+			if fake.updateCalled {
+				t.Fatalf("UpdateUser was called")
+			}
+			var gotErr map[string]string
+			err := json.NewDecoder(recorder.Body).Decode(&gotErr)
+			if err != nil {
+				t.Fatalf("Decode response error: %v", err)
+			}
+			if gotErr["error"] != test.wantErr {
+				t.Errorf("Error() got: %q, want: %q", gotErr["error"], test.wantErr)
+			}
+		})
+	}
+}
+
+func TestUserHandlerMapsUpdateUserErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		wantStatus int
+		storageErr error
+	}{
+		{
+			name:       "validation error",
+			wantStatus: http.StatusBadRequest,
+			storageErr: storage.ErrValidation,
+		},
+		{
+			name:       "not found error",
+			wantStatus: http.StatusNotFound,
+			storageErr: storage.ErrNotFound,
+		},
+		{
+			name:       "conflict error",
+			wantStatus: http.StatusConflict,
+			storageErr: storage.ErrConflict,
+		},
+		{
+			name:       "unexpected error",
+			wantStatus: http.StatusInternalServerError,
+			storageErr: errors.New("database unavailable"),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fake := &fakeUserStorage{
+				updateErr: test.storageErr,
+			}
+			h := New(fake)
+			request := httptest.NewRequest(http.MethodPut, "/user?id=1", strings.NewReader(`{"name":"Dima","email":"dima@example.com"}`))
+			recorder := httptest.NewRecorder()
+			h.UserHandler(recorder, request)
+			if !fake.updateCalled {
+				t.Fatalf("UserHandler() got: %v, want: %v", fake.updateCalled, true)
+			}
+			if recorder.Code != test.wantStatus {
+				t.Errorf("Status() got: %d, want: %d", recorder.Code, test.wantStatus)
+			}
+			var gotErr map[string]string
+			err := json.NewDecoder(recorder.Body).Decode(&gotErr)
+			if err != nil {
+				t.Fatalf("decode response err: %v", err)
+			}
+			if gotErr["error"] != test.storageErr.Error() {
+				t.Errorf("Error() got: %q, want: %q", gotErr["error"], test.storageErr.Error())
 			}
 		})
 	}

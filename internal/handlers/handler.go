@@ -31,12 +31,12 @@ func New(store UserStorage) *Handler {
 	}
 }
 
-type CreateUserRequest struct {
+type UserRequest struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
 }
 
-func validateCreateUserRequest(req *CreateUserRequest) error {
+func validateUserRequest(req *UserRequest) error {
 	req.Name = strings.TrimSpace(req.Name)
 	req.Email = strings.TrimSpace(req.Email)
 	if req.Name == "" {
@@ -56,11 +56,6 @@ func validateCreateUserRequest(req *CreateUserRequest) error {
 		return errors.New("email is invalid")
 	}
 	return nil
-}
-
-type UpdateUserRequest struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
 }
 
 func writeJSON(w http.ResponseWriter, status int, date any) {
@@ -136,13 +131,13 @@ func (h *Handler) getUserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) createUserHandler(w http.ResponseWriter, r *http.Request) {
-	req := CreateUserRequest{}
+	req := UserRequest{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	err = validateCreateUserRequest(&req)
+	err = validateUserRequest(&req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -178,10 +173,15 @@ func (h *Handler) updateUserHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	req := UpdateUserRequest{}
+	req := UserRequest{}
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	err = validateUserRequest(&req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	user, err := h.store.UpdateUser(id, req.Name, req.Email)
