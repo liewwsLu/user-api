@@ -16,13 +16,16 @@ type fakeUserStorage struct {
 	listErr      error
 	createErr    error
 	updateErr    error
+	findErr      error
 	createdUser  models.User
 	updatedUser  models.User
+	foundUser    models.User
 	gotName      string
 	gotEmail     string
 	gotID        int
 	createCalled bool
 	updateCalled bool
+	findCalled   bool
 }
 
 func (f *fakeUserStorage) ListUsers() ([]models.User, error) {
@@ -30,7 +33,9 @@ func (f *fakeUserStorage) ListUsers() ([]models.User, error) {
 }
 
 func (f *fakeUserStorage) FindUserByID(id int) (models.User, error) {
-	panic("not implemented")
+	f.findCalled = true
+	f.gotID = id
+	return f.foundUser, f.findErr
 }
 
 func (f *fakeUserStorage) CreateUser(name, email string) (models.User, error) {
@@ -479,6 +484,107 @@ func TestUserHandlerMapsUpdateUserErrors(t *testing.T) {
 			}
 			if gotErr["error"] != test.storageErr.Error() {
 				t.Errorf("Error() got: %q, want: %q", gotErr["error"], test.storageErr.Error())
+			}
+		})
+	}
+}
+
+func TestUserHandlerReturnsUserByID(t *testing.T) {
+	wantUser := models.User{
+		ID:    7,
+		Name:  "Egor",
+		Email: "egor@example.com",
+	}
+	fake := &fakeUserStorage{
+		foundUser: wantUser,
+	}
+	h := New(fake)
+	request := httptest.NewRequest(http.MethodGet, "/user?id=7", nil)
+	recorder := httptest.NewRecorder()
+	h.UserHandler(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("Status() got: %d, want: %d", recorder.Code, http.StatusOK)
+	}
+	if !fake.findCalled {
+		t.Fatalf("FindUserByID() was not called")
+	}
+	if fake.gotID != wantUser.ID {
+		t.Errorf("ID in storage: %d, want: %d", fake.gotID, wantUser.ID)
+	}
+	var gotUser models.User
+	err := json.NewDecoder(recorder.Body).Decode(&gotUser)
+	if err != nil {
+		t.Fatalf("decode response error: %v", err)
+	}
+	if gotUser != wantUser {
+		t.Errorf("FindUser() got: %+v, want: %+v", gotUser, wantUser)
+	}
+}
+
+func TestUserHandlerRejectsInvalidID(t *testing.T) {
+	fake := &fakeUserStorage{}
+	h := New(fake)
+	request := httptest.NewRequest(http.MethodGet, "/user?id=0", nil)
+	recorder := httptest.NewRecorder()
+	h.UserHandler(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("Status() got: %d, want: %d", recorder.Code, http.StatusBadRequest)
+	}
+	if fake.findCalled {
+		t.Fatalf("FindUserByID() was called")
+	}
+	var gotErr map[string]string
+	err := json.NewDecoder(recorder.Body).Decode(&gotErr)
+	if err != nil {
+		t.Fatalf("decode response error: %v", err)
+	}
+	if gotErr["error"] != "invalid id" {
+		t.Errorf("UserHandler() error: %v, want: %v", gotErr["error"], "invalid id")
+	}
+}
+
+func TestUserHandlerMapsFindUserErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		storageErr error
+		wantStatus int
+	}{
+		{
+			name:       "user not found",
+			storageErr: storage.ErrNotFound,
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "unexpected storage error",
+			storageErr: errors.New("database unavailable"),
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fake := &fakeUserStorage{
+				findErr: test.storageErr,
+			}
+			h := New(fake)
+			request := httptest.NewRequest(http.MethodGet, "/user?id=7", nil)
+			recorder := httptest.NewRecorder()
+			h.UserHandler(recorder, request)
+			if !fake.findCalled {
+				t.Fatalf("FindUserByID() was not called")
+			}
+			if fake.gotID != 7 {
+				t.Errorf("FindUserByID() ID = %d, want %d", fake.gotID, 7)
+			}
+			if recorder.Code != test.wantStatus {
+				t.Fatalf("Status() got: %d, want: %d", recorder.Code, test.wantStatus)
+			}
+			var gotErr map[string]string
+			err := json.NewDecoder(recorder.Body).Decode(&gotErr)
+			if err != nil {
+				t.Fatalf("decode response error: %v", err)
+			}
+			if gotErr["error"] != test.storageErr.Error() {
+				t.Errorf("Error() got: %v, want: %v", gotErr["error"], test.storageErr.Error())
 			}
 		})
 	}
