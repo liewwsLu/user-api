@@ -124,7 +124,7 @@ func (h *Handler) getUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	u, err := h.store.FindUserByID(id)
 	if err != nil {
-		writeError(w, http.StatusNotFound, err.Error())
+		writeError(w, storage.StatusByError(err), err.Error())
 		return
 	}
 	writeJSON(w, 200, u)
