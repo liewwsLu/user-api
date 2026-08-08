@@ -15,5 +15,8 @@ func ParseID(r *http.Request) (int, error) {
 	if err != nil {
 		return 0, errors.New("invalid id")
 	}
+	if id <= 0 {
+		return 0, errors.New("invalid id")
+	}
 	return id, nil
 }
