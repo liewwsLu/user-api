@@ -740,3 +740,41 @@ func TestUserHandlerMapsDeleteUserErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestUserHandlerRejectsUnsupportedMethod(t *testing.T) {
+	fake := &fakeUserStorage{}
+	h := New(fake)
+	request := httptest.NewRequest(http.MethodPost, "/user", nil)
+	recorder := httptest.NewRecorder()
+	h.UserHandler(recorder, request)
+	if recorder.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("UserHandler() status: %d, want: %d", recorder.Code, http.StatusMethodNotAllowed)
+	}
+	var gotErr map[string]string
+	err := json.NewDecoder(recorder.Body).Decode(&gotErr)
+	if err != nil {
+		t.Fatalf("decode response error: %v", err)
+	}
+	if gotErr["error"] != "method not allowed" {
+		t.Errorf("UserHandler() error: %q, want: %q", gotErr["error"], "method not allowed")
+	}
+}
+
+func TestUsersHandlerRejectsUnsupportedMethod(t *testing.T) {
+	fake := &fakeUserStorage{}
+	h := New(fake)
+	request := httptest.NewRequest(http.MethodPut, "/users", nil)
+	recorder := httptest.NewRecorder()
+	h.UsersHandler(recorder, request)
+	if recorder.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("UsersHandler() status: %d, want: %d", recorder.Code, http.StatusMethodNotAllowed)
+	}
+	var gotErr map[string]string
+	err := json.NewDecoder(recorder.Body).Decode(&gotErr)
+	if err != nil {
+		t.Fatalf("decode response error: %v", err)
+	}
+	if gotErr["error"] != "method not allowed" {
+		t.Errorf("UsersHandler() error: %q, want: %q", gotErr["error"], "method not allowed")
+	}
+}
