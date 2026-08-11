@@ -166,26 +166,42 @@ func TestUsersHandlerCreateUser(t *testing.T) {
 	}
 }
 
-func TestUsersHandlerRejectsInvalidJSON(t *testing.T) {
-	fake := &fakeUserStorage{}
-	h := New(fake)
+func TestUsersHandlerRejectsInvalidCreateJSON(t *testing.T) {
+	tests := []struct {
+		name        string
+		requestJSON string
+	}{
+		{name: "malformed JSON", requestJSON: `{"name":`},
+		{name: "unknown field", requestJSON: `{"name":"Egor","email":"egor@example.com","role":"admin"}`},
+		{
+			name: "multiple JSON objects",
+			requestJSON: `{"name":"Egor","email":"egor@example.com"}
+						{"name":"Dima","email":"dima@example.com"}`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fake := &fakeUserStorage{}
+			h := New(fake)
 
-	request := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":`))
-	recorder := httptest.NewRecorder()
-	h.UsersHandler(recorder, request)
-	if recorder.Code != http.StatusBadRequest {
-		t.Errorf("recorder code() got: %d, want: %d", recorder.Code, http.StatusBadRequest)
-	}
-	if fake.createCalled {
-		t.Fatalf("CreateUser was called")
-	}
-	var gotErr map[string]string
-	err := json.NewDecoder(recorder.Body).Decode(&gotErr)
-	if err != nil {
-		t.Fatalf("decode response body: %v", err)
-	}
-	if gotErr["error"] != "invalid json" {
-		t.Errorf("json status: %q, want: %q", gotErr["error"], "invalid json")
+			request := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(test.requestJSON))
+			recorder := httptest.NewRecorder()
+			h.UsersHandler(recorder, request)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("UsersHandler() status: %d, want: %d", recorder.Code, http.StatusBadRequest)
+			}
+			if fake.createCalled {
+				t.Fatalf("CreateUser() was called")
+			}
+			var gotErr map[string]string
+			err := json.NewDecoder(recorder.Body).Decode(&gotErr)
+			if err != nil {
+				t.Fatalf("decode response body: %v", err)
+			}
+			if gotErr["error"] != "invalid json" {
+				t.Errorf("json status: %q, want: %q", gotErr["error"], "invalid json")
+			}
+		})
 	}
 }
 
@@ -413,6 +429,7 @@ func TestUserHandlerRejectsInvalidUpdateInput(t *testing.T) {
 		{name: "malformed JSON", requestJSON: `{"name":}`, wantErr: "invalid json"},
 		{name: "empty name", requestJSON: `{"name":"","email":"egor@example.com"}`, wantErr: "name is required"},
 		{name: "invalid email", requestJSON: `{"name":"Egor","email":"hello"}`, wantErr: "email is invalid"},
+		{name: "unknown field", requestJSON: `{"name":"Egor","email":"egor@example.com","role":"admin"}`, wantErr: "invalid json"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
