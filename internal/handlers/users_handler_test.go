@@ -178,6 +178,11 @@ func TestUsersHandlerRejectsInvalidCreateJSON(t *testing.T) {
 			requestJSON: `{"name":"Egor","email":"egor@example.com"}
 						{"name":"Dima","email":"dima@example.com"}`,
 		},
+		{
+			name: "body too large",
+			requestJSON: `{"name":"Egor","email":"egor@example.com"}` +
+				strings.Repeat(" ", maxJSONBodyBytes+1),
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

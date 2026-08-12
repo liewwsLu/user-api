@@ -132,7 +132,7 @@ func (h *Handler) getUserHandler(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) createUserHandler(w http.ResponseWriter, r *http.Request) {
 	req := UserRequest{}
-	err := decodeJSONBody(r, &req)
+	err := decodeJSONBody(w, r, &req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
@@ -174,7 +174,7 @@ func (h *Handler) updateUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req := UserRequest{}
-	err = decodeJSONBody(r, &req)
+	err = decodeJSONBody(w, r, &req)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
