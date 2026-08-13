@@ -18,6 +18,7 @@ User API — учебный HTTP API для управления пользов�
 
 ```powershell
 docker compose up -d
+docker run --rm --mount "type=bind,source=${PWD}\migrations,target=/migrations,readonly" --network user-api_default migrate/migrate:v4.19.1 -path=/migrations -database "postgres://user:password@postgres:5432/user_api?sslmode=disable" up
 $env:DATABASE_URL = "postgres://user:password@localhost:5432/user_api?sslmode=disable"
 $env:SERVER_PORT = "8080"
 go run ./cmd/user-api
