@@ -200,3 +200,44 @@ func TestPostgresStorage_UpdateUser_EmailConflict(t *testing.T) {
 		t.Errorf("UpdateUser() error: %v, want: %v", err, ErrConflict)
 	}
 }
+
+func TestPostgresStorage_UpdateUser_NotFound(t *testing.T) {
+	db := openTestDB(t)
+	clearUsers(t, db)
+	store := NewPostgresStorage(db)
+	_, err := store.UpdateUser(999, "Dima", "dima@example.com")
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("UpdateUser() got: %v, want: %v", err, ErrNotFound)
+	}
+}
+
+func TestPostgresStorage_DeleteUser(t *testing.T) {
+	db := openTestDB(t)
+	clearUsers(t, db)
+	store := NewPostgresStorage(db)
+	_, err := db.Exec("INSERT INTO users(name,email) VALUES($1,$2)", "Egor", "egor@example.com")
+	if err != nil {
+		t.Fatalf("db.Exec() error: %v", err)
+	}
+	if err = store.DeleteUser(1); err != nil {
+		t.Fatalf("DeleteUser() error: %v", err)
+	}
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM users WHERE id = $1", 1).Scan(&count)
+	if err != nil {
+		t.Fatalf("QueryRow() error: %v", err)
+	}
+	if count != 0 {
+		t.Error("DeleteUser wasn't be succesful")
+	}
+}
+
+func TestPostgresStorage_DeleteUser_NotFound(t *testing.T) {
+	db := openTestDB(t)
+	clearUsers(t, db)
+	store := NewPostgresStorage(db)
+	err := store.DeleteUser(999)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("DeleteUser() error: %v, want: %v", err, ErrNotFound)
+	}
+}
