@@ -35,8 +35,43 @@ go run ./cmd/user-api
 | `PUT` | `/user?id=1` | Изменение пользователя |
 | `DELETE` | `/user?id=1` | Удаление пользователя |
 
-## Tests:
+## Tests
 
 ```powershell
 go test ./...
 ```
+
+Команда запускает тесты, доступные без тестовой БД, а PostgreSQL-тесты без `TEST_DATABASE_URL` будут пропущены.
+
+### Integration tests
+
+Для запуска integration-тестов нужны:
+
+- запущенный PostgreSQL;
+- применённые миграции;
+- переменная окружения `TEST_DATABASE_URL`.
+
+При первом запуске создайте отдельную тестовую базу:
+
+```powershell
+docker compose up -d
+docker exec user-api-postgres psql -U user -d postgres -c 'CREATE DATABASE user_api_test OWNER "user";'
+```
+
+Примените миграции и запустите тесты:
+
+```powershell
+docker run --rm --mount "type=bind,source=${PWD}\migrations,target=/migrations,readonly" --network user-api_default migrate/migrate:v4.19.1 -path=/migrations -database "postgres://user:password@postgres:5432/user_api_test?sslmode=disable" up
+$env:TEST_DATABASE_URL = "postgres://user:password@localhost:5432/user_api_test?sslmode=disable"
+go test ./... -count=1
+```
+
+Разбор:
+
+- `docker compose up -d` запускает локальный PostgreSQL;
+- `CREATE DATABASE` выполняется один раз, пока существует Docker volume;
+- `"user"` взят в кавычки, потому что `user` имеет специальное значение в PostgreSQL;
+- миграции направлены в `user_api_test`, а не в рабочую `user_api`;
+- `TEST_DATABASE_URL` доступна только текущему PowerShell;
+- `-count=1` заставляет integration-тесты реально выполниться;
+- `DATABASE_URL` и `SERVER_PORT` здесь не нужны, потому что HTTP-сервер не запускается.
