@@ -89,8 +89,8 @@ func (s *PostgresStorage) ListUsers(ctx context.Context) ([]models.User, error) 
 	}
 	return users, nil
 }
-func (s *PostgresStorage) DeleteUser(id int) error {
-	result, err := s.db.Exec(
+func (s *PostgresStorage) DeleteUser(ctx context.Context, id int) error {
+	result, err := s.db.ExecContext(ctx,
 		"DELETE FROM users WHERE id = $1",
 		id,
 	)

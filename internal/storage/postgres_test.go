@@ -220,7 +220,7 @@ func TestPostgresStorage_DeleteUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.Exec() error: %v", err)
 	}
-	if err = store.DeleteUser(1); err != nil {
+	if err = store.DeleteUser(context.Background(), 1); err != nil {
 		t.Fatalf("DeleteUser() error: %v", err)
 	}
 	var count int
@@ -237,7 +237,7 @@ func TestPostgresStorage_DeleteUser_NotFound(t *testing.T) {
 	db := openTestDB(t)
 	clearUsers(t, db)
 	store := NewPostgresStorage(db)
-	err := store.DeleteUser(999)
+	err := store.DeleteUser(context.Background(), 999)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("DeleteUser() error: %v, want: %v", err, ErrNotFound)
 	}

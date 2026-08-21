@@ -61,9 +61,10 @@ func (f *fakeUserStorage) UpdateUser(gotCtx context.Context, id int, name, email
 	return f.updatedUser, f.updateErr
 }
 
-func (f *fakeUserStorage) DeleteUser(id int) error {
+func (f *fakeUserStorage) DeleteUser(gotCtx context.Context, id int) error {
 	f.deleteCalled = true
 	f.gotID = id
+	f.gotCtx = gotCtx
 	return f.deleteErr
 }
 
@@ -706,6 +707,9 @@ func TestUserHandlerDeletesUser(t *testing.T) {
 	fake := &fakeUserStorage{}
 	h := New(fake)
 	request := httptest.NewRequest(http.MethodDelete, "/user?id=1", nil)
+	ctx, cancel := context.WithCancel(request.Context())
+	defer cancel()
+	request = request.WithContext(ctx)
 	recorder := httptest.NewRecorder()
 	h.UserHandler(recorder, request)
 	if recorder.Code != http.StatusOK {
@@ -713,6 +717,9 @@ func TestUserHandlerDeletesUser(t *testing.T) {
 	}
 	if !fake.deleteCalled {
 		t.Fatalf("DeleteUser() was not called")
+	}
+	if fake.gotCtx != request.Context() {
+		t.Errorf("DeleteUser() received a different context")
 	}
 	if fake.gotID != 1 {
 		t.Errorf("DeleteUser() id: %d, want: %d", fake.gotID, 1)

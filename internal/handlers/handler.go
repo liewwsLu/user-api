@@ -19,7 +19,7 @@ type UserStorage interface {
 	FindUserByID(ctx context.Context, id int) (models.User, error)
 	CreateUser(ctx context.Context, name, email string) (models.User, error)
 	UpdateUser(ctx context.Context, id int, name, email string) (models.User, error)
-	DeleteUser(id int) error
+	DeleteUser(ctx context.Context, id int) error
 }
 
 type Handler struct {
@@ -158,7 +158,7 @@ func (h *Handler) deleteHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	err = h.store.DeleteUser(id)
+	err = h.store.DeleteUser(r.Context(), id)
 	if err != nil {
 		writeError(w, storage.StatusByError(err), err.Error())
 		return

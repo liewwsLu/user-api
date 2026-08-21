@@ -66,7 +66,10 @@ func (s *MemoryStorage) ListUsers(ctx context.Context) ([]models.User, error) {
 	return slice, nil
 }
 
-func (s *MemoryStorage) DeleteUser(id int) error {
+func (s *MemoryStorage) DeleteUser(ctx context.Context, id int) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	_, ok := s.users[id]
 	if ok {
 		delete(s.users, id)
