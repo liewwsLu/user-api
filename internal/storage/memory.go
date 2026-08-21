@@ -19,7 +19,10 @@ func NewMemoryStorage() *MemoryStorage {
 	return &t
 }
 
-func (s *MemoryStorage) CreateUser(name, email string) (models.User, error) {
+func (s *MemoryStorage) CreateUser(ctx context.Context, name, email string) (models.User, error) {
+	if err := ctx.Err(); err != nil {
+		return models.User{}, err
+	}
 	name = strings.TrimSpace(name)
 	email = strings.TrimSpace(email)
 	if name == "" || email == "" {

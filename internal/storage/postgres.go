@@ -26,14 +26,17 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
-func (s *PostgresStorage) CreateUser(name, email string) (models.User, error) {
+func (s *PostgresStorage) CreateUser(ctx context.Context, name, email string) (models.User, error) {
+	if err := ctx.Err(); err != nil {
+		return models.User{}, err
+	}
 	name = strings.TrimSpace(name)
 	email = strings.TrimSpace(email)
 	if name == "" || email == "" {
 		return models.User{}, ErrValidation
 	}
 	u := models.User{}
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(ctx,
 		"INSERT INTO users(name, email) VALUES($1, $2) RETURNING id, name, email",
 		name,
 		email,

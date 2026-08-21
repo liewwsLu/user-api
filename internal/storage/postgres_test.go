@@ -47,7 +47,7 @@ func TestPostgresStorage_CreateUser(t *testing.T) {
 	db := openTestDB(t)
 	clearUsers(t, db)
 	store := NewPostgresStorage(db)
-	got, err := store.CreateUser("Egor", "egor@example.com")
+	got, err := store.CreateUser(context.Background(), "Egor", "egor@example.com")
 	if err != nil {
 		t.Fatalf("CreateUser() error: %v", err)
 	}
@@ -66,11 +66,11 @@ func TestPostgresStorage_CreateUser_DuplicateEmail(t *testing.T) {
 	db := openTestDB(t)
 	clearUsers(t, db)
 	store := NewPostgresStorage(db)
-	_, err := store.CreateUser("Egor", "egor@example.com")
+	_, err := store.CreateUser(context.Background(), "Egor", "egor@example.com")
 	if err != nil {
 		t.Fatalf("CreateUser() error: %v", err)
 	}
-	_, err = store.CreateUser("Alex", "egor@example.com")
+	_, err = store.CreateUser(context.Background(), "Alex", "egor@example.com")
 	if !errors.Is(err, ErrConflict) {
 		t.Errorf("CreateUser() error: %v, want: %v", err, ErrConflict)
 	}

@@ -44,10 +44,11 @@ func (f *fakeUserStorage) FindUserByID(gotCtx context.Context, id int) (models.U
 	return f.foundUser, f.findErr
 }
 
-func (f *fakeUserStorage) CreateUser(name, email string) (models.User, error) {
+func (f *fakeUserStorage) CreateUser(gotCtx context.Context, name, email string) (models.User, error) {
 	f.createCalled = true
 	f.gotEmail = email
 	f.gotName = name
+	f.gotCtx = gotCtx
 	return f.createdUser, f.createErr
 }
 
@@ -137,6 +138,9 @@ func TestUsersHandlerCreateUser(t *testing.T) {
 	fake := &fakeUserStorage{createdUser: wantUser}
 	h := New(fake)
 	request := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"     Dima     ","email":"     dima@yandex.ru      "}`))
+	ctx, cancel := context.WithCancel(request.Context())
+	defer cancel()
+	request = request.WithContext(ctx)
 	recorder := httptest.NewRecorder()
 	h.UsersHandler(recorder, request)
 	if recorder.Code != http.StatusCreated {
@@ -144,6 +148,9 @@ func TestUsersHandlerCreateUser(t *testing.T) {
 	}
 	if !fake.createCalled {
 		t.Fatalf("CreateUser was not called")
+	}
+	if request.Context() != fake.gotCtx {
+		t.Errorf("CreateUser() received a different context")
 	}
 	if fake.gotName != wantUser.Name {
 		t.Errorf(
