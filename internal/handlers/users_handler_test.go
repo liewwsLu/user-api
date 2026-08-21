@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -28,15 +29,17 @@ type fakeUserStorage struct {
 	updateCalled bool
 	findCalled   bool
 	deleteCalled bool
+	gotCtx       context.Context
 }
 
 func (f *fakeUserStorage) ListUsers() ([]models.User, error) {
 	return f.users, f.listErr
 }
 
-func (f *fakeUserStorage) FindUserByID(id int) (models.User, error) {
+func (f *fakeUserStorage) FindUserByID(gotCtx context.Context, id int) (models.User, error) {
 	f.findCalled = true
 	f.gotID = id
+	f.gotCtx = gotCtx
 	return f.foundUser, f.findErr
 }
 
@@ -528,6 +531,10 @@ func TestUserHandlerReturnsUserByID(t *testing.T) {
 	h := New(fake)
 
 	request := httptest.NewRequest(http.MethodGet, "/user?id=7", nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	request = request.WithContext(ctx)
+
 	recorder := httptest.NewRecorder()
 
 	h.UserHandler(recorder, request)
@@ -550,6 +557,10 @@ func TestUserHandlerReturnsUserByID(t *testing.T) {
 			fake.gotID,
 			wantUser.ID,
 		)
+	}
+
+	if fake.gotCtx != request.Context() {
+		t.Errorf("FindUserByID() received a different context")
 	}
 
 	var gotUser models.User

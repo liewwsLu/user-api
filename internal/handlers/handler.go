@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +16,7 @@ import (
 
 type UserStorage interface {
 	ListUsers() ([]models.User, error)
-	FindUserByID(id int) (models.User, error)
+	FindUserByID(ctx context.Context, id int) (models.User, error)
 	CreateUser(name, email string) (models.User, error)
 	UpdateUser(id int, name, email string) (models.User, error)
 	DeleteUser(id int) error
@@ -122,7 +123,8 @@ func (h *Handler) getUserHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	u, err := h.store.FindUserByID(id)
+	ctx := r.Context()
+	u, err := h.store.FindUserByID(ctx, id)
 	if err != nil {
 		writeError(w, storage.StatusByError(err), err.Error())
 		return

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"strings"
 	"user-api/internal/models"
 )
@@ -40,7 +41,10 @@ func (s *MemoryStorage) CreateUser(name, email string) (models.User, error) {
 	return new, nil
 }
 
-func (s *MemoryStorage) FindUserByID(id int) (models.User, error) {
+func (s *MemoryStorage) FindUserByID(ctx context.Context, id int) (models.User, error) {
+	if err := ctx.Err(); err != nil {
+		return models.User{}, err
+	}
 	_, ok := s.users[id]
 	if ok {
 		return s.users[id], nil

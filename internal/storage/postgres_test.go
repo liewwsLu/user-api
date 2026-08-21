@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"os"
@@ -88,7 +89,7 @@ func TestPostgresStorage_FindUserByID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.Exec() error: %v", err)
 	}
-	got, err := store.FindUserByID(1)
+	got, err := store.FindUserByID(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("FindUserByID() error: %v", err)
 	}
@@ -101,7 +102,7 @@ func TestPostgresStorage_FindUserByID_NotFound(t *testing.T) {
 	db := openTestDB(t)
 	clearUsers(t, db)
 	store := NewPostgresStorage(db)
-	_, err := store.FindUserByID(999)
+	_, err := store.FindUserByID(context.Background(), 999)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("FindUserByID() got: %v, want: %v", err, ErrNotFound)
 	}

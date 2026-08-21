@@ -1,12 +1,14 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgconn"
 	"strings"
 	"user-api/internal/models"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type PostgresStorage struct {
@@ -46,9 +48,9 @@ func (s *PostgresStorage) CreateUser(name, email string) (models.User, error) {
 
 }
 
-func (s *PostgresStorage) FindUserByID(id int) (models.User, error) {
+func (s *PostgresStorage) FindUserByID(ctx context.Context, id int) (models.User, error) {
 	u := models.User{}
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(ctx,
 		"SELECT id, name, email FROM users WHERE id = $1",
 		id,
 	).Scan(&u.ID, &u.Name, &u.Email)
