@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,11 +15,11 @@ import (
 )
 
 type UserStorage interface {
-	ListUsers() ([]models.User, error)
-	FindUserByID(id int) (models.User, error)
-	CreateUser(name, email string) (models.User, error)
-	UpdateUser(id int, name, email string) (models.User, error)
-	DeleteUser(id int) error
+	ListUsers(ctx context.Context) ([]models.User, error)
+	FindUserByID(ctx context.Context, id int) (models.User, error)
+	CreateUser(ctx context.Context, name, email string) (models.User, error)
+	UpdateUser(ctx context.Context, id int, name, email string) (models.User, error)
+	DeleteUser(ctx context.Context, id int) error
 }
 
 type Handler struct {
@@ -84,7 +85,7 @@ func (h *Handler) HealthHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UsersHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		u, err := h.store.ListUsers()
+		u, err := h.store.ListUsers(r.Context())
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -122,7 +123,8 @@ func (h *Handler) getUserHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	u, err := h.store.FindUserByID(id)
+	ctx := r.Context()
+	u, err := h.store.FindUserByID(ctx, id)
 	if err != nil {
 		writeError(w, storage.StatusByError(err), err.Error())
 		return
@@ -142,7 +144,7 @@ func (h *Handler) createUserHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	u, err := h.store.CreateUser(req.Name, req.Email)
+	u, err := h.store.CreateUser(r.Context(), req.Name, req.Email)
 	if err != nil {
 		writeError(w, storage.StatusByError(err), err.Error())
 		return
@@ -156,7 +158,7 @@ func (h *Handler) deleteHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	err = h.store.DeleteUser(id)
+	err = h.store.DeleteUser(r.Context(), id)
 	if err != nil {
 		writeError(w, storage.StatusByError(err), err.Error())
 		return
@@ -184,7 +186,7 @@ func (h *Handler) updateUserHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	user, err := h.store.UpdateUser(id, req.Name, req.Email)
+	user, err := h.store.UpdateUser(r.Context(), id, req.Name, req.Email)
 	if err != nil {
 		writeError(w, storage.StatusByError(err), err.Error())
 		return

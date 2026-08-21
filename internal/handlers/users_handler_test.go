@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -28,36 +29,42 @@ type fakeUserStorage struct {
 	updateCalled bool
 	findCalled   bool
 	deleteCalled bool
+	gotCtx       context.Context
 }
 
-func (f *fakeUserStorage) ListUsers() ([]models.User, error) {
+func (f *fakeUserStorage) ListUsers(gotCtx context.Context) ([]models.User, error) {
+	f.gotCtx = gotCtx
 	return f.users, f.listErr
 }
 
-func (f *fakeUserStorage) FindUserByID(id int) (models.User, error) {
+func (f *fakeUserStorage) FindUserByID(gotCtx context.Context, id int) (models.User, error) {
 	f.findCalled = true
 	f.gotID = id
+	f.gotCtx = gotCtx
 	return f.foundUser, f.findErr
 }
 
-func (f *fakeUserStorage) CreateUser(name, email string) (models.User, error) {
+func (f *fakeUserStorage) CreateUser(gotCtx context.Context, name, email string) (models.User, error) {
 	f.createCalled = true
 	f.gotEmail = email
 	f.gotName = name
+	f.gotCtx = gotCtx
 	return f.createdUser, f.createErr
 }
 
-func (f *fakeUserStorage) UpdateUser(id int, name, email string) (models.User, error) {
+func (f *fakeUserStorage) UpdateUser(gotCtx context.Context, id int, name, email string) (models.User, error) {
 	f.updateCalled = true
 	f.gotID = id
 	f.gotName = name
 	f.gotEmail = email
+	f.gotCtx = gotCtx
 	return f.updatedUser, f.updateErr
 }
 
-func (f *fakeUserStorage) DeleteUser(id int) error {
+func (f *fakeUserStorage) DeleteUser(gotCtx context.Context, id int) error {
 	f.deleteCalled = true
 	f.gotID = id
+	f.gotCtx = gotCtx
 	return f.deleteErr
 }
 
@@ -74,6 +81,9 @@ func TestUsersHandlerReturnsUsers(t *testing.T) {
 	}
 	h := New(fake)
 	request := httptest.NewRequest(http.MethodGet, "/users", nil)
+	ctx, cancel := context.WithCancel(request.Context())
+	defer cancel()
+	request = request.WithContext(ctx)
 	recorder := httptest.NewRecorder()
 	h.UsersHandler(recorder, request)
 	if recorder.Code != http.StatusOK {
@@ -82,6 +92,9 @@ func TestUsersHandlerReturnsUsers(t *testing.T) {
 			recorder.Code,
 			http.StatusOK,
 		)
+	}
+	if request.Context() != fake.gotCtx {
+		t.Errorf("ListUsers() received a different context")
 	}
 	var gotUsers []models.User
 	err := json.NewDecoder(recorder.Body).Decode(&gotUsers)
@@ -127,6 +140,9 @@ func TestUsersHandlerCreateUser(t *testing.T) {
 	fake := &fakeUserStorage{createdUser: wantUser}
 	h := New(fake)
 	request := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"     Dima     ","email":"     dima@yandex.ru      "}`))
+	ctx, cancel := context.WithCancel(request.Context())
+	defer cancel()
+	request = request.WithContext(ctx)
 	recorder := httptest.NewRecorder()
 	h.UsersHandler(recorder, request)
 	if recorder.Code != http.StatusCreated {
@@ -134,6 +150,9 @@ func TestUsersHandlerCreateUser(t *testing.T) {
 	}
 	if !fake.createCalled {
 		t.Fatalf("CreateUser was not called")
+	}
+	if request.Context() != fake.gotCtx {
+		t.Errorf("CreateUser() received a different context")
 	}
 	if fake.gotName != wantUser.Name {
 		t.Errorf(
@@ -390,6 +409,9 @@ func TestUserHandlerUpdatesUser(t *testing.T) {
 	}
 	h := New(fake)
 	request := httptest.NewRequest(http.MethodPut, "/user?id=1", strings.NewReader(`{"name":"   Egor    ","email":"   egor@example.com   "}`))
+	ctx, cancel := context.WithCancel(request.Context())
+	defer cancel()
+	request = request.WithContext(ctx)
 	recorder := httptest.NewRecorder()
 	h.UserHandler(recorder, request)
 	if recorder.Code != http.StatusOK {
@@ -397,6 +419,9 @@ func TestUserHandlerUpdatesUser(t *testing.T) {
 	}
 	if !fake.updateCalled {
 		t.Fatalf("UpdateUser was not called")
+	}
+	if request.Context() != fake.gotCtx {
+		t.Errorf("UpdateUser() received a different context")
 	}
 	if fake.gotID != 1 {
 		t.Errorf("ID() got: %d, want: %d", fake.gotID, 1)
@@ -528,6 +553,10 @@ func TestUserHandlerReturnsUserByID(t *testing.T) {
 	h := New(fake)
 
 	request := httptest.NewRequest(http.MethodGet, "/user?id=7", nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	request = request.WithContext(ctx)
+
 	recorder := httptest.NewRecorder()
 
 	h.UserHandler(recorder, request)
@@ -550,6 +579,10 @@ func TestUserHandlerReturnsUserByID(t *testing.T) {
 			fake.gotID,
 			wantUser.ID,
 		)
+	}
+
+	if fake.gotCtx != request.Context() {
+		t.Errorf("FindUserByID() received a different context")
 	}
 
 	var gotUser models.User
@@ -674,6 +707,9 @@ func TestUserHandlerDeletesUser(t *testing.T) {
 	fake := &fakeUserStorage{}
 	h := New(fake)
 	request := httptest.NewRequest(http.MethodDelete, "/user?id=1", nil)
+	ctx, cancel := context.WithCancel(request.Context())
+	defer cancel()
+	request = request.WithContext(ctx)
 	recorder := httptest.NewRecorder()
 	h.UserHandler(recorder, request)
 	if recorder.Code != http.StatusOK {
@@ -681,6 +717,9 @@ func TestUserHandlerDeletesUser(t *testing.T) {
 	}
 	if !fake.deleteCalled {
 		t.Fatalf("DeleteUser() was not called")
+	}
+	if fake.gotCtx != request.Context() {
+		t.Errorf("DeleteUser() received a different context")
 	}
 	if fake.gotID != 1 {
 		t.Errorf("DeleteUser() id: %d, want: %d", fake.gotID, 1)

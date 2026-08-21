@@ -1,12 +1,14 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgconn"
 	"strings"
 	"user-api/internal/models"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type PostgresStorage struct {
@@ -24,14 +26,17 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
-func (s *PostgresStorage) CreateUser(name, email string) (models.User, error) {
+func (s *PostgresStorage) CreateUser(ctx context.Context, name, email string) (models.User, error) {
+	if err := ctx.Err(); err != nil {
+		return models.User{}, err
+	}
 	name = strings.TrimSpace(name)
 	email = strings.TrimSpace(email)
 	if name == "" || email == "" {
 		return models.User{}, ErrValidation
 	}
 	u := models.User{}
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(ctx,
 		"INSERT INTO users(name, email) VALUES($1, $2) RETURNING id, name, email",
 		name,
 		email,
@@ -46,9 +51,9 @@ func (s *PostgresStorage) CreateUser(name, email string) (models.User, error) {
 
 }
 
-func (s *PostgresStorage) FindUserByID(id int) (models.User, error) {
+func (s *PostgresStorage) FindUserByID(ctx context.Context, id int) (models.User, error) {
 	u := models.User{}
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(ctx,
 		"SELECT id, name, email FROM users WHERE id = $1",
 		id,
 	).Scan(&u.ID, &u.Name, &u.Email)
@@ -61,8 +66,8 @@ func (s *PostgresStorage) FindUserByID(id int) (models.User, error) {
 	return u, nil
 }
 
-func (s *PostgresStorage) ListUsers() ([]models.User, error) {
-	rows, err := s.db.Query(
+func (s *PostgresStorage) ListUsers(ctx context.Context) ([]models.User, error) {
+	rows, err := s.db.QueryContext(ctx,
 		"SELECT id, name, email FROM users ORDER BY 1",
 	)
 	if err != nil {
@@ -84,8 +89,8 @@ func (s *PostgresStorage) ListUsers() ([]models.User, error) {
 	}
 	return users, nil
 }
-func (s *PostgresStorage) DeleteUser(id int) error {
-	result, err := s.db.Exec(
+func (s *PostgresStorage) DeleteUser(ctx context.Context, id int) error {
+	result, err := s.db.ExecContext(ctx,
 		"DELETE FROM users WHERE id = $1",
 		id,
 	)
@@ -102,14 +107,17 @@ func (s *PostgresStorage) DeleteUser(id int) error {
 	return nil
 }
 
-func (s *PostgresStorage) UpdateUser(id int, name, email string) (models.User, error) {
+func (s *PostgresStorage) UpdateUser(ctx context.Context, id int, name, email string) (models.User, error) {
+	if err := ctx.Err(); err != nil {
+		return models.User{}, err
+	}
 	name = strings.TrimSpace(name)
 	email = strings.TrimSpace(email)
 	if name == "" || email == "" {
 		return models.User{}, ErrValidation
 	}
 	u := models.User{}
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(ctx,
 		"UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING id, name, email",
 		name,
 		email,

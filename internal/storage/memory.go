@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"strings"
 	"user-api/internal/models"
 )
@@ -18,7 +19,10 @@ func NewMemoryStorage() *MemoryStorage {
 	return &t
 }
 
-func (s *MemoryStorage) CreateUser(name, email string) (models.User, error) {
+func (s *MemoryStorage) CreateUser(ctx context.Context, name, email string) (models.User, error) {
+	if err := ctx.Err(); err != nil {
+		return models.User{}, err
+	}
 	name = strings.TrimSpace(name)
 	email = strings.TrimSpace(email)
 	if name == "" || email == "" {
@@ -40,7 +44,10 @@ func (s *MemoryStorage) CreateUser(name, email string) (models.User, error) {
 	return new, nil
 }
 
-func (s *MemoryStorage) FindUserByID(id int) (models.User, error) {
+func (s *MemoryStorage) FindUserByID(ctx context.Context, id int) (models.User, error) {
+	if err := ctx.Err(); err != nil {
+		return models.User{}, err
+	}
 	_, ok := s.users[id]
 	if ok {
 		return s.users[id], nil
@@ -48,7 +55,10 @@ func (s *MemoryStorage) FindUserByID(id int) (models.User, error) {
 	return models.User{}, ErrNotFound
 }
 
-func (s *MemoryStorage) ListUsers() ([]models.User, error) {
+func (s *MemoryStorage) ListUsers(ctx context.Context) ([]models.User, error) {
+	if err := ctx.Err(); err != nil {
+		return []models.User{}, err
+	}
 	slice := make([]models.User, 0, len(s.users))
 	for _, u := range s.users {
 		slice = append(slice, u)
@@ -56,7 +66,10 @@ func (s *MemoryStorage) ListUsers() ([]models.User, error) {
 	return slice, nil
 }
 
-func (s *MemoryStorage) DeleteUser(id int) error {
+func (s *MemoryStorage) DeleteUser(ctx context.Context, id int) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	_, ok := s.users[id]
 	if ok {
 		delete(s.users, id)
@@ -65,7 +78,10 @@ func (s *MemoryStorage) DeleteUser(id int) error {
 	return ErrNotFound
 }
 
-func (s *MemoryStorage) UpdateUser(id int, name, email string) (models.User, error) {
+func (s *MemoryStorage) UpdateUser(ctx context.Context, id int, name, email string) (models.User, error) {
+	if err := ctx.Err(); err != nil {
+		return models.User{}, err
+	}
 	name = strings.TrimSpace(name)
 	email = strings.TrimSpace(email)
 	if name == "" || email == "" {

@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"os"
@@ -46,7 +47,7 @@ func TestPostgresStorage_CreateUser(t *testing.T) {
 	db := openTestDB(t)
 	clearUsers(t, db)
 	store := NewPostgresStorage(db)
-	got, err := store.CreateUser("Egor", "egor@example.com")
+	got, err := store.CreateUser(context.Background(), "Egor", "egor@example.com")
 	if err != nil {
 		t.Fatalf("CreateUser() error: %v", err)
 	}
@@ -65,11 +66,11 @@ func TestPostgresStorage_CreateUser_DuplicateEmail(t *testing.T) {
 	db := openTestDB(t)
 	clearUsers(t, db)
 	store := NewPostgresStorage(db)
-	_, err := store.CreateUser("Egor", "egor@example.com")
+	_, err := store.CreateUser(context.Background(), "Egor", "egor@example.com")
 	if err != nil {
 		t.Fatalf("CreateUser() error: %v", err)
 	}
-	_, err = store.CreateUser("Alex", "egor@example.com")
+	_, err = store.CreateUser(context.Background(), "Alex", "egor@example.com")
 	if !errors.Is(err, ErrConflict) {
 		t.Errorf("CreateUser() error: %v, want: %v", err, ErrConflict)
 	}
@@ -88,7 +89,7 @@ func TestPostgresStorage_FindUserByID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.Exec() error: %v", err)
 	}
-	got, err := store.FindUserByID(1)
+	got, err := store.FindUserByID(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("FindUserByID() error: %v", err)
 	}
@@ -101,7 +102,7 @@ func TestPostgresStorage_FindUserByID_NotFound(t *testing.T) {
 	db := openTestDB(t)
 	clearUsers(t, db)
 	store := NewPostgresStorage(db)
-	_, err := store.FindUserByID(999)
+	_, err := store.FindUserByID(context.Background(), 999)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("FindUserByID() got: %v, want: %v", err, ErrNotFound)
 	}
@@ -125,7 +126,7 @@ func TestPostgresStorage_ListUsers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.Exec() error: %v", err)
 	}
-	got, err := store.ListUsers()
+	got, err := store.ListUsers(context.Background())
 	if err != nil {
 		t.Fatalf("ListUsers() error: %v", err)
 	}
@@ -138,7 +139,7 @@ func TestPostgresStorage_ListUsers_Empty(t *testing.T) {
 	db := openTestDB(t)
 	clearUsers(t, db)
 	store := NewPostgresStorage(db)
-	got, err := store.ListUsers()
+	got, err := store.ListUsers(context.Background())
 	if err != nil {
 		t.Fatalf("ListUsers() error: %v", err)
 	}
@@ -168,7 +169,7 @@ func TestPostgresStorage_UpdateUser(t *testing.T) {
 		Name:  "Egor_Updated",
 		Email: "new@example.com",
 	}
-	got, err := store.UpdateUser(1, want.Name, want.Email)
+	got, err := store.UpdateUser(context.Background(), 1, want.Name, want.Email)
 	if err != nil {
 		t.Fatalf("UpdateUser() error: %v", err)
 	}
@@ -195,7 +196,7 @@ func TestPostgresStorage_UpdateUser_EmailConflict(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.Exec() error: %v", err)
 	}
-	_, err = store.UpdateUser(1, "Egor_Updated", "alex@example.com")
+	_, err = store.UpdateUser(context.Background(), 1, "Egor_Updated", "alex@example.com")
 	if !errors.Is(err, ErrConflict) {
 		t.Errorf("UpdateUser() error: %v, want: %v", err, ErrConflict)
 	}
@@ -205,7 +206,7 @@ func TestPostgresStorage_UpdateUser_NotFound(t *testing.T) {
 	db := openTestDB(t)
 	clearUsers(t, db)
 	store := NewPostgresStorage(db)
-	_, err := store.UpdateUser(999, "Dima", "dima@example.com")
+	_, err := store.UpdateUser(context.Background(), 999, "Dima", "dima@example.com")
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("UpdateUser() got: %v, want: %v", err, ErrNotFound)
 	}
@@ -219,7 +220,7 @@ func TestPostgresStorage_DeleteUser(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.Exec() error: %v", err)
 	}
-	if err = store.DeleteUser(1); err != nil {
+	if err = store.DeleteUser(context.Background(), 1); err != nil {
 		t.Fatalf("DeleteUser() error: %v", err)
 	}
 	var count int
@@ -236,7 +237,7 @@ func TestPostgresStorage_DeleteUser_NotFound(t *testing.T) {
 	db := openTestDB(t)
 	clearUsers(t, db)
 	store := NewPostgresStorage(db)
-	err := store.DeleteUser(999)
+	err := store.DeleteUser(context.Background(), 999)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("DeleteUser() error: %v, want: %v", err, ErrNotFound)
 	}
