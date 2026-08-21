@@ -32,7 +32,8 @@ type fakeUserStorage struct {
 	gotCtx       context.Context
 }
 
-func (f *fakeUserStorage) ListUsers() ([]models.User, error) {
+func (f *fakeUserStorage) ListUsers(gotCtx context.Context) ([]models.User, error) {
+	f.gotCtx = gotCtx
 	return f.users, f.listErr
 }
 
@@ -77,6 +78,9 @@ func TestUsersHandlerReturnsUsers(t *testing.T) {
 	}
 	h := New(fake)
 	request := httptest.NewRequest(http.MethodGet, "/users", nil)
+	ctx, cancel := context.WithCancel(request.Context())
+	defer cancel()
+	request = request.WithContext(ctx)
 	recorder := httptest.NewRecorder()
 	h.UsersHandler(recorder, request)
 	if recorder.Code != http.StatusOK {
@@ -85,6 +89,9 @@ func TestUsersHandlerReturnsUsers(t *testing.T) {
 			recorder.Code,
 			http.StatusOK,
 		)
+	}
+	if request.Context() != fake.gotCtx {
+		t.Errorf("ListUsers() received a different context")
 	}
 	var gotUsers []models.User
 	err := json.NewDecoder(recorder.Body).Decode(&gotUsers)

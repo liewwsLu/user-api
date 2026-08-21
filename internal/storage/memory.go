@@ -52,7 +52,10 @@ func (s *MemoryStorage) FindUserByID(ctx context.Context, id int) (models.User, 
 	return models.User{}, ErrNotFound
 }
 
-func (s *MemoryStorage) ListUsers() ([]models.User, error) {
+func (s *MemoryStorage) ListUsers(ctx context.Context) ([]models.User, error) {
+	if err := ctx.Err(); err != nil {
+		return []models.User{}, err
+	}
 	slice := make([]models.User, 0, len(s.users))
 	for _, u := range s.users {
 		slice = append(slice, u)

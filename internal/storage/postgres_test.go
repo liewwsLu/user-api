@@ -126,7 +126,7 @@ func TestPostgresStorage_ListUsers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.Exec() error: %v", err)
 	}
-	got, err := store.ListUsers()
+	got, err := store.ListUsers(context.Background())
 	if err != nil {
 		t.Fatalf("ListUsers() error: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestPostgresStorage_ListUsers_Empty(t *testing.T) {
 	db := openTestDB(t)
 	clearUsers(t, db)
 	store := NewPostgresStorage(db)
-	got, err := store.ListUsers()
+	got, err := store.ListUsers(context.Background())
 	if err != nil {
 		t.Fatalf("ListUsers() error: %v", err)
 	}

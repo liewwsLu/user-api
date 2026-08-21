@@ -15,7 +15,7 @@ import (
 )
 
 type UserStorage interface {
-	ListUsers() ([]models.User, error)
+	ListUsers(ctx context.Context) ([]models.User, error)
 	FindUserByID(ctx context.Context, id int) (models.User, error)
 	CreateUser(name, email string) (models.User, error)
 	UpdateUser(id int, name, email string) (models.User, error)
@@ -85,7 +85,7 @@ func (h *Handler) HealthHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UsersHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		u, err := h.store.ListUsers()
+		u, err := h.store.ListUsers(r.Context())
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return

@@ -63,8 +63,8 @@ func (s *PostgresStorage) FindUserByID(ctx context.Context, id int) (models.User
 	return u, nil
 }
 
-func (s *PostgresStorage) ListUsers() ([]models.User, error) {
-	rows, err := s.db.Query(
+func (s *PostgresStorage) ListUsers(ctx context.Context) ([]models.User, error) {
+	rows, err := s.db.QueryContext(ctx,
 		"SELECT id, name, email FROM users ORDER BY 1",
 	)
 	if err != nil {
