@@ -107,14 +107,17 @@ func (s *PostgresStorage) DeleteUser(id int) error {
 	return nil
 }
 
-func (s *PostgresStorage) UpdateUser(id int, name, email string) (models.User, error) {
+func (s *PostgresStorage) UpdateUser(ctx context.Context, id int, name, email string) (models.User, error) {
+	if err := ctx.Err(); err != nil {
+		return models.User{}, err
+	}
 	name = strings.TrimSpace(name)
 	email = strings.TrimSpace(email)
 	if name == "" || email == "" {
 		return models.User{}, ErrValidation
 	}
 	u := models.User{}
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(ctx,
 		"UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING id, name, email",
 		name,
 		email,

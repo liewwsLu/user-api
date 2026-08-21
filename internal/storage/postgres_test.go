@@ -169,7 +169,7 @@ func TestPostgresStorage_UpdateUser(t *testing.T) {
 		Name:  "Egor_Updated",
 		Email: "new@example.com",
 	}
-	got, err := store.UpdateUser(1, want.Name, want.Email)
+	got, err := store.UpdateUser(context.Background(), 1, want.Name, want.Email)
 	if err != nil {
 		t.Fatalf("UpdateUser() error: %v", err)
 	}
@@ -196,7 +196,7 @@ func TestPostgresStorage_UpdateUser_EmailConflict(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.Exec() error: %v", err)
 	}
-	_, err = store.UpdateUser(1, "Egor_Updated", "alex@example.com")
+	_, err = store.UpdateUser(context.Background(), 1, "Egor_Updated", "alex@example.com")
 	if !errors.Is(err, ErrConflict) {
 		t.Errorf("UpdateUser() error: %v, want: %v", err, ErrConflict)
 	}
@@ -206,7 +206,7 @@ func TestPostgresStorage_UpdateUser_NotFound(t *testing.T) {
 	db := openTestDB(t)
 	clearUsers(t, db)
 	store := NewPostgresStorage(db)
-	_, err := store.UpdateUser(999, "Dima", "dima@example.com")
+	_, err := store.UpdateUser(context.Background(), 999, "Dima", "dima@example.com")
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("UpdateUser() got: %v, want: %v", err, ErrNotFound)
 	}

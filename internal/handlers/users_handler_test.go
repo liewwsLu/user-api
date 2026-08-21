@@ -52,11 +52,12 @@ func (f *fakeUserStorage) CreateUser(gotCtx context.Context, name, email string)
 	return f.createdUser, f.createErr
 }
 
-func (f *fakeUserStorage) UpdateUser(id int, name, email string) (models.User, error) {
+func (f *fakeUserStorage) UpdateUser(gotCtx context.Context, id int, name, email string) (models.User, error) {
 	f.updateCalled = true
 	f.gotID = id
 	f.gotName = name
 	f.gotEmail = email
+	f.gotCtx = gotCtx
 	return f.updatedUser, f.updateErr
 }
 
@@ -407,6 +408,9 @@ func TestUserHandlerUpdatesUser(t *testing.T) {
 	}
 	h := New(fake)
 	request := httptest.NewRequest(http.MethodPut, "/user?id=1", strings.NewReader(`{"name":"   Egor    ","email":"   egor@example.com   "}`))
+	ctx, cancel := context.WithCancel(request.Context())
+	defer cancel()
+	request = request.WithContext(ctx)
 	recorder := httptest.NewRecorder()
 	h.UserHandler(recorder, request)
 	if recorder.Code != http.StatusOK {
@@ -414,6 +418,9 @@ func TestUserHandlerUpdatesUser(t *testing.T) {
 	}
 	if !fake.updateCalled {
 		t.Fatalf("UpdateUser was not called")
+	}
+	if request.Context() != fake.gotCtx {
+		t.Errorf("UpdateUser() received a different context")
 	}
 	if fake.gotID != 1 {
 		t.Errorf("ID() got: %d, want: %d", fake.gotID, 1)

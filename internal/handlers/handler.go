@@ -18,7 +18,7 @@ type UserStorage interface {
 	ListUsers(ctx context.Context) ([]models.User, error)
 	FindUserByID(ctx context.Context, id int) (models.User, error)
 	CreateUser(ctx context.Context, name, email string) (models.User, error)
-	UpdateUser(id int, name, email string) (models.User, error)
+	UpdateUser(ctx context.Context, id int, name, email string) (models.User, error)
 	DeleteUser(id int) error
 }
 
@@ -186,7 +186,7 @@ func (h *Handler) updateUserHandler(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	user, err := h.store.UpdateUser(id, req.Name, req.Email)
+	user, err := h.store.UpdateUser(r.Context(), id, req.Name, req.Email)
 	if err != nil {
 		writeError(w, storage.StatusByError(err), err.Error())
 		return
