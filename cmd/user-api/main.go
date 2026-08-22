@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"time"
 	"user-api/internal/config"
 	"user-api/internal/handlers"
 	"user-api/internal/storage"
@@ -31,15 +32,19 @@ func main() {
 	fmt.Println("succesful connected")
 	p := storage.NewPostgresStorage(bd)
 	h := handlers.New(p)
-
-	http.HandleFunc("/health", h.HealthHandler)
-	http.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
-		h.UsersHandler(w, r)
-	})
-	http.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {
-		h.UserHandler(w, r)
-	})
-	err = http.ListenAndServe(fmt.Sprintf(":%d", cfg.ServerPort), nil)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", h.HealthHandler)
+	mux.HandleFunc("/users", h.UsersHandler)
+	mux.HandleFunc("/user", h.UserHandler)
+	server := &http.Server{
+		Addr:              fmt.Sprintf(":%d", cfg.ServerPort),
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	err = server.ListenAndServe()
 	if err != nil {
 		fmt.Println("Error:", err)
 	}
