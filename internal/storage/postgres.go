@@ -6,7 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"user-api/internal/models"
+
+	"github.com/liewwsLu/user-api/internal/models"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -95,7 +96,7 @@ func (s *PostgresStorage) DeleteUser(ctx context.Context, id int) error {
 		id,
 	)
 	if err != nil {
-		return fmt.Errorf("SQL-question error: %w", err)
+		return fmt.Errorf("delete user: %w", err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {

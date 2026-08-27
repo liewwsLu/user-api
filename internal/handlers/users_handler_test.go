@@ -8,8 +8,9 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"user-api/internal/models"
-	"user-api/internal/storage"
+
+	"github.com/liewwsLu/user-api/internal/models"
+	"github.com/liewwsLu/user-api/internal/storage"
 )
 
 type fakeUserStorage struct {

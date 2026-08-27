@@ -8,7 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"user-api/internal/models"
+
+	"github.com/liewwsLu/user-api/internal/models"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -229,7 +230,7 @@ func TestPostgresStorage_DeleteUser(t *testing.T) {
 		t.Fatalf("QueryRow() error: %v", err)
 	}
 	if count != 0 {
-		t.Error("DeleteUser wasn't be succesful")
+		t.Errorf("users count after DeleteUser() = %d, want 0", count)
 	}
 }
 
