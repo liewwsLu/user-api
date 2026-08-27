@@ -1,9 +1,15 @@
 package main
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 	"user-api/internal/config"
 	"user-api/internal/handlers"
 	"user-api/internal/storage"
@@ -28,19 +34,49 @@ func main() {
 		fmt.Println("ping db error:", err)
 		return
 	}
-	fmt.Println("succesful connected")
+	fmt.Println("successfully connected to database")
 	p := storage.NewPostgresStorage(bd)
 	h := handlers.New(p)
-
-	http.HandleFunc("/health", h.HealthHandler)
-	http.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
-		h.UsersHandler(w, r)
-	})
-	http.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {
-		h.UserHandler(w, r)
-	})
-	err = http.ListenAndServe(fmt.Sprintf(":%d", cfg.ServerPort), nil)
-	if err != nil {
-		fmt.Println("Error:", err)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", h.HealthHandler)
+	mux.HandleFunc("/users", h.UsersHandler)
+	mux.HandleFunc("/user", h.UserHandler)
+	server := &http.Server{
+		Addr:              fmt.Sprintf(":%d", cfg.ServerPort),
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
+	signalCtx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+	defer stop()
+	serverErr := make(chan error, 1)
+	fmt.Println("starting HTTP server on", server.Addr)
+	go func() {
+		serverErr <- server.ListenAndServe()
+	}()
+	select {
+	case <-signalCtx.Done():
+		fmt.Println("shutdown signal received")
+	case err := <-serverErr:
+		if !errors.Is(err, http.ErrServerClosed) {
+			fmt.Println("server error:", err)
+		}
+		return
+	}
+	shutdownCtx, cancel := context.WithTimeout(
+		context.Background(),
+		5*time.Second,
+	)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		fmt.Println("shutdown error:", err)
+		return
+	}
+	fmt.Println("HTTP server stopped")
 }

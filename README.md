@@ -2,19 +2,29 @@
 
 User API — учебный HTTP API для управления пользователями. Проект написан на Go и хранит данные в PostgreSQL.
 
-## Requirements:
- 
- - Go
- - Docker 
- - Docker Compose
+## Возможности
 
-## Configuration:
- 
- - `DATABASE_URL` - обязательная строка подключения к PostgreSQL;
- - `SERVER_PORT` - необязательный порт, поскольку по умолчанию 8080;
- - `безопасный пример` находится в `.env.example`.
+- CRUD HTTP API для управления пользователями.
+- PostgreSQL storage и SQL-миграции.
+- Валидация JSON-запросов и преобразование ошибок в HTTP-статусы.
+- Unit-тесты HTTP handlers и integration-тесты PostgreSQL storage.
+- Передача `context.Context` от HTTP-запроса до SQL-операций.
+- GitHub Actions CI с PostgreSQL и автоматическим запуском тестов.
+- Таймауты HTTP-сервера и graceful shutdown.
 
-## Running locally:
+## Требования
+
+- Go
+- Docker
+- Docker Compose
+
+## Конфигурация
+
+- `DATABASE_URL` — обязательная строка подключения к PostgreSQL;
+- `SERVER_PORT` — необязательный порт сервера, по умолчанию используется `8080`;
+- безопасный пример конфигурации находится в `.env.example`.
+
+## Локальный запуск
 
 ```powershell
 docker compose up -d
@@ -24,7 +34,7 @@ $env:SERVER_PORT = "8080"
 go run ./cmd/user-api
 ```
 
-## API endpoints
+## Эндпоинты API
 
 | Method | Path | Назначение |
 |---|---|---|
@@ -35,7 +45,7 @@ go run ./cmd/user-api
 | `PUT` | `/user?id=1` | Изменение пользователя |
 | `DELETE` | `/user?id=1` | Удаление пользователя |
 
-## Tests
+## Тесты
 
 ```powershell
 go test ./...
@@ -43,7 +53,7 @@ go test ./...
 
 Команда запускает тесты, доступные без тестовой БД, а PostgreSQL-тесты без `TEST_DATABASE_URL` будут пропущены.
 
-### Integration tests
+### Интеграционные тесты
 
 Для запуска integration-тестов нужны:
 
@@ -75,3 +85,19 @@ go test ./... -count=1
 - `TEST_DATABASE_URL` доступна только текущему PowerShell;
 - `-count=1` заставляет integration-тесты реально выполниться;
 - `DATABASE_URL` и `SERVER_PORT` здесь не нужны, потому что HTTP-сервер не запускается.
+
+## Непрерывная интеграция (CI)
+
+GitHub Actions запускается при push в `main` и при создании Pull Request в `main`.
+
+CI выполняет следующие шаги:
+
+1. Загружает репозиторий.
+2. Устанавливает версию Go из `go.mod`.
+3. Запускает PostgreSQL service.
+4. Применяет SQL-миграции.
+5. Запускает все тесты командой `go test ./... -count=1`.
+
+## Завершение сервера
+
+Сервер обрабатывает `Ctrl+C` и `SIGTERM`. После получения сигнала он перестаёт принимать новые соединения и даёт активным запросам до 5 секунд на завершение.
