@@ -7,11 +7,11 @@ import (
 )
 
 func ParseID(r *http.Request) (int, error) {
-	idT := r.URL.Query().Get("id")
-	if idT == "" {
+	idText := r.URL.Query().Get("id")
+	if idText == "" {
 		return 0, errors.New("invalid id")
 	}
-	id, err := strconv.Atoi(idT)
+	id, err := strconv.Atoi(idText)
 	if err != nil {
 		return 0, errors.New("invalid id")
 	}

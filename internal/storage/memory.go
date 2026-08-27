@@ -3,7 +3,8 @@ package storage
 import (
 	"context"
 	"strings"
-	"user-api/internal/models"
+
+	"github.com/liewwsLu/user-api/internal/models"
 )
 
 type MemoryStorage struct {
@@ -33,15 +34,15 @@ func (s *MemoryStorage) CreateUser(ctx context.Context, name, email string) (mod
 			return models.User{}, ErrConflict
 		}
 	}
-	new := models.User{
+	user := models.User{
 		ID:    s.nextID,
 		Name:  name,
 		Email: email,
 	}
-	s.users[s.nextID] = new
+	s.users[s.nextID] = user
 	s.nextID++
 
-	return new, nil
+	return user, nil
 }
 
 func (s *MemoryStorage) FindUserByID(ctx context.Context, id int) (models.User, error) {

@@ -9,9 +9,10 @@ import (
 	"net/mail"
 	"strings"
 	"unicode/utf8"
-	"user-api/internal/helper"
-	"user-api/internal/models"
-	"user-api/internal/storage"
+
+	"github.com/liewwsLu/user-api/internal/helper"
+	"github.com/liewwsLu/user-api/internal/models"
+	"github.com/liewwsLu/user-api/internal/storage"
 )
 
 type UserStorage interface {
@@ -59,10 +60,10 @@ func validateUserRequest(req *UserRequest) error {
 	return nil
 }
 
-func writeJSON(w http.ResponseWriter, status int, date any) {
+func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	err := json.NewEncoder(w).Encode(date)
+	err := json.NewEncoder(w).Encode(data)
 	if err != nil {
 		fmt.Println("json encode error:", err)
 	}

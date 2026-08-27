@@ -7,7 +7,7 @@ import (
 
 var ErrValidation = errors.New("validation error")
 var ErrNotFound = errors.New("not found")
-var ErrConflict = errors.New("already exist")
+var ErrConflict = errors.New("already exists")
 
 func StatusByError(err error) int {
 	if err == nil {
